@@ -1,64 +1,96 @@
+
+"""Screen applicants for scholarship eligibility."""
+
 import json
-import math
-import sys
 
 # Global state
 results = {}
-MERIT_FORMULA = "gpa * 10 + credits * 2"
 INCOME_LIMIT = 800000
 CUTOFF = 85
 
-def calculate_merit_score(gpa, credits):
-    """Calculate merit score using GPA and extracurricular credits."""
-    return gpa * 10 + credits * 2
 
-def evaluate_applicant(student_id, test_scores, logs=[]):
+def calculate_merit_score(gpa, extracurricular_credits):
+    """Calculate merit using GPA and extracurricular credits."""
+    return gpa * 10 + extracurricular_credits * 2
+
+
+def evaluate_applicant(student_id, test_scores, logs=None):
+    """Evaluate an applicant and record their merit score."""
+    if logs is None:
+        logs = []
+
     gpa = test_scores["gpa"]
-    credits = test_scores.get("credits", 0)
+    extracurricular_credits = test_scores.get("credits", 0)
     income = test_scores.get("income", 0)
-    score = calculate_merit_score(gpa, credits)
+
+    score = calculate_merit_score(gpa, extracurricular_credits)
     eligible = score >= CUTOFF and income < INCOME_LIMIT
-    results[student_id] = {"score": score, "eligible": eligible}
-    logs.append("%s scored %s" % (student_id, score))
+
+    results[student_id] = {
+        "score": score,
+        "eligible": eligible,
+    }
+
+    logs.append(f"{student_id} scored {score}")
     return eligible
 
-def change_formula(new_formula):
-    global MERIT_FORMULA
-    MERIT_FORMULA = new_formula
 
 def persist_results(file="scholarships.json"):
-    f = open(file, "w")
-    f.write(json.dumps(results))
-    f.close()
+    """Save scholarship results to a JSON file."""
+    with open(file, "w", encoding="utf-8") as output_file:
+        json.dump(results, output_file, indent=4)
+
 
 def load_results(file="scholarships.json"):
     """Load saved scholarship results from a JSON file."""
-    global results
     try:
         with open(file, "r", encoding="utf-8") as input_file:
-            results = json.load(input_file)
+            loaded_results = json.load(input_file)
     except FileNotFoundError:
-        results = {}
+        return {}
     except json.JSONDecodeError as error:
-        raise ValueError("The results file contains invalid JSON.") from error
+        raise ValueError(
+            "The results file contains invalid JSON."
+        ) from error
 
-def printShortlist():
+    if not isinstance(loaded_results, dict):
+        raise ValueError("The results file must contain a JSON object.")
+
+    return loaded_results
+
+
+def print_shortlist():
+    """Print shortlisted applicants and their scores."""
     print("Shortlisted applicants:")
-    for r in results:
-        if results[r]["eligible"] == True:
-            print(" ", r, "score =", results[r]["score"])
+
+    for student_id, applicant in results.items():
+        if applicant["eligible"]:
+            print(f"  {student_id} score = {applicant['score']}")
+
 
 def main():
-    evaluate_applicant("U001", {"gpa": 9.1, "credits": 4, "income": 450000})
-    evaluate_applicant("U002", {"gpa": 7.2, "credits": 1, "income": 300000})
-    evaluate_applicant("U003", {"gpa": 12.5, "credits": -3, "income": -1})
-    evaluate_applicant("U004", {"gpa": 6.5})
-    formula = input("Merit formula (Enter to keep default): ")
-    if formula:
-        change_formula(formula)
-    evaluate_applicant("U005", {"gpa": 8.4, "credits": 3, "income": 600000})
-    persist_results()
-    load_results()
-    printShortlist()
+    """Run the scholarship screening workflow."""
+    applicants = {
+        "U001": {"gpa": 9.1, "credits": 4, "income": 450000},
+        "U002": {"gpa": 7.2, "credits": 1, "income": 300000},
+        "U003": {"gpa": 12.5, "credits": -3, "income": -1},
+        "U004": {"gpa": 6.5},
+        "U005": {"gpa": 8.4, "credits": 3, "income": 600000},
+    }
 
-main()
+    logs = []
+
+    for student_id, test_scores in applicants.items():
+        try:
+            evaluate_applicant(student_id, test_scores, logs)
+        except (KeyError, ValueError) as error:
+            print(f"Skipping {student_id}: {error}")
+
+    persist_results()
+    loaded_results = load_results()
+    results.update(loaded_results)
+    print_shortlist()
+
+
+if __name__ == "__main__":
+    main()
