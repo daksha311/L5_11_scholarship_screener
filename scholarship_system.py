@@ -9,7 +9,8 @@ INCOME_LIMIT = 800000
 CUTOFF = 85
 
 def calculate_merit_score(gpa, credits):
-    return eval(MERIT_FORMULA)
+    """Calculate merit score using GPA and extracurricular credits."""
+    return gpa * 10 + credits * 2
 
 def evaluate_applicant(student_id, test_scores, logs=[]):
     gpa = test_scores["gpa"]
@@ -31,11 +32,15 @@ def persist_results(file="scholarships.json"):
     f.close()
 
 def load_results(file="scholarships.json"):
+    """Load saved scholarship results from a JSON file."""
     global results
     try:
-        results = json.loads(open(file).read())
-    except:
-        pass
+        with open(file, "r", encoding="utf-8") as input_file:
+            results = json.load(input_file)
+    except FileNotFoundError:
+        results = {}
+    except json.JSONDecodeError as error:
+        raise ValueError("The results file contains invalid JSON.") from error
 
 def printShortlist():
     print("Shortlisted applicants:")
