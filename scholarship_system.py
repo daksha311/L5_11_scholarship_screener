@@ -19,9 +19,30 @@ def evaluate_applicant(student_id, test_scores, logs=None):
     if logs is None:
         logs = []
 
-    gpa = test_scores["gpa"]
+    gpa = test_scores.get("gpa")
     extracurricular_credits = test_scores.get("credits", 0)
     income = test_scores.get("income", 0)
+
+    if (
+        isinstance(gpa, bool)
+        or not isinstance(gpa, (int, float))
+        or not 0 <= gpa <= 10
+    ):
+        raise ValueError("GPA must be between 0 and 10.")
+
+    if (
+        isinstance(extracurricular_credits, bool)
+        or not isinstance(extracurricular_credits, int)
+        or extracurricular_credits < 0
+    ):
+        raise ValueError("Credits must be a non-negative integer.")
+
+    if (
+        isinstance(income, bool)
+        or not isinstance(income, (int, float))
+        or income < 0
+    ):
+        raise ValueError("Income must be a non-negative number.")
 
     score = calculate_merit_score(gpa, extracurricular_credits)
     eligible = score >= CUTOFF and income < INCOME_LIMIT
